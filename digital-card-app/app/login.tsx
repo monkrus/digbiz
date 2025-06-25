@@ -1,78 +1,53 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
-import { useRouter } from 'expo-router';
+import { View, TextInput, Button, Text, StyleSheet } from 'react-native';
+import { loginWithEmailPassword } from '../utils/auth';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLogin, setIsLogin] = useState(true);
-  const router = useRouter();
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const handleAuth = async () => {
+  const handleLogin = async () => {
+    setError('');
+    setSuccess('');
     try {
-      if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
-        Alert.alert('Success', 'Logged in!');
-        router.replace('/tabs'); // replace with tab root after login
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
-        Alert.alert('Success', 'Account created!');
-        router.replace('/tabs');
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
+      const data = await loginWithEmailPassword(email, password);
+      setSuccess('Login successful!');
+      console.log('User data:', data);
+      // TODO: Navigate to home/tabs screen
+    } catch (err: any) {
+      setError(err.message);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{isLogin ? 'Login' : 'Sign Up'}</Text>
       <TextInput
         placeholder="Email"
-        value={email}
         onChangeText={setEmail}
-        style={styles.input}
+        value={email}
         keyboardType="email-address"
         autoCapitalize="none"
+        style={styles.input}
       />
       <TextInput
         placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
         secureTextEntry
+        onChangeText={setPassword}
+        value={password}
+        style={styles.input}
       />
-      <TouchableOpacity style={styles.button} onPress={handleAuth}>
-        <Text style={styles.buttonText}>{isLogin ? 'Login' : 'Sign Up'}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-        <Text style={styles.switchText}>
-          {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Login"}
-        </Text>
-      </TouchableOpacity>
+      <Button title="Login" onPress={handleLogin} />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {success ? <Text style={styles.success}>{success}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20
-  },
-  title: {
-    fontSize: 24, fontWeight: 'bold', marginBottom: 20
-  },
-  input: {
-    width: '100%', height: 50, borderColor: '#ccc', borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, marginBottom: 10
-  },
-  button: {
-    backgroundColor: '#0066cc', padding: 15, borderRadius: 8, width: '100%', alignItems: 'center'
-  },
-  buttonText: {
-    color: '#fff', fontWeight: 'bold'
-  },
-  switchText: {
-    marginTop: 15, color: '#555'
-  }
+  container: { padding: 20 },
+  input: { borderWidth: 1, marginVertical: 10, padding: 8, borderRadius: 5 },
+  error: { color: 'red', marginTop: 10 },
+  success: { color: 'green', marginTop: 10 },
 });
