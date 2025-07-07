@@ -1,38 +1,38 @@
+// digital-card-app/app/(tabs)/qr-scanner.tsx
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useIsFocused } from '@react-navigation/native';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { useAuth } from '../../hooks/auth-context';
 
 export default function QRScannerScreen() {
+  const { user } = useAuth();
   const [scanned, setScanned] = useState(false);
   const [cameraPermission, requestPermission] = useCameraPermissions();
   const isFocused = useIsFocused();
 
-  // Simplified permission handling - directly use cameraPermission
   const hasPermission = cameraPermission?.granted;
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (scanned) return;
+    if (scanned || !user) return;
 
     setScanned(true);
-    
+
     try {
-      // Parse JSON
       const parsed = JSON.parse(data);
       const { name, email, phone } = parsed;
 
-      // Validate required fields
       if (!name || !email || !phone) {
         throw new Error('Missing required contact information');
       }
 
-      // Save to Firebase
-      await addDoc(collection(db, 'contacts'), { 
-        name: name.trim(), 
-        email: email.trim(), 
-        phone: phone.trim() 
+      await addDoc(collection(db, 'users', user.uid, 'contacts'), {
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        scannedAt: new Date(),
       });
 
       Alert.alert(
@@ -42,8 +42,7 @@ export default function QRScannerScreen() {
       );
     } catch (error) {
       let errorMessage = 'This QR code does not contain valid contact info.';
-      
-      // More specific error handling
+
       if (error instanceof SyntaxError) {
         errorMessage = 'QR code contains invalid data format.';
       } else if (
@@ -52,26 +51,15 @@ export default function QRScannerScreen() {
         'message' in error &&
         (error as { message?: string }).message === 'Missing required contact information'
       ) {
-        errorMessage = 'QR code is missing required contact fields (name, email, phone).';
-      } else if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        typeof (error as { code?: string }).code === 'string' &&
-        (error as { code?: string }).code?.startsWith('firestore/')
-      ) {
-        errorMessage = 'Failed to save contact. Please try again.';
+        errorMessage = 'QR code is missing required fields (name, email, phone).';
       }
 
-      Alert.alert(
-        'Invalid QR Code',
-        errorMessage,
-        [{ text: 'OK', onPress: () => setScanned(false) }]
-      );
+      Alert.alert('Invalid QR Code', errorMessage, [
+        { text: 'OK', onPress: () => setScanned(false) },
+      ]);
     }
   };
 
-  // Handle loading state
   if (cameraPermission === null) {
     return (
       <View style={styles.centered}>
@@ -80,7 +68,6 @@ export default function QRScannerScreen() {
     );
   }
 
-  // Handle permission denied
   if (!hasPermission) {
     return (
       <View style={styles.centered}>
@@ -101,8 +88,7 @@ export default function QRScannerScreen() {
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         />
       )}
-      
-      {/* Overlay for better UX */}
+
       <View style={styles.overlay}>
         <View style={styles.scanArea} />
         <Text style={styles.instructionText}>
@@ -120,10 +106,7 @@ export default function QRScannerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1,
-    backgroundColor: 'black',
-  },
+  container: { flex: 1, backgroundColor: 'black' },
   centered: {
     flex: 1,
     justifyContent: 'center',
