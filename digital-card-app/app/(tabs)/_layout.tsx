@@ -1,7 +1,9 @@
-import { Tabs } from 'expo-router';
+// digital-card-app/app/(tabs)/_layout.tsx
+import { Tabs, Redirect } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
 
+import { useAuth } from '../../hooks/auth-context';
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
@@ -10,6 +12,10 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { user, loading } = useAuth();
+
+  if (loading) return null; // Show splash or blank while loading
+  if (!user) return <Redirect href="/login" />; // Redirect if not signed in
 
   return (
     <Tabs
@@ -19,10 +25,7 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
+          ios: { position: 'absolute' },
           default: {},
         }),
       }}
