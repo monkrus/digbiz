@@ -1,138 +1,84 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TextInput, Text, StyleSheet, ScrollView, Button, Alert } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
+import { auth } from '../../firebase';
+import { signOut } from 'firebase/auth';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../../hooks/auth-context';
-import { logout } from '../../utils/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
-import QRCode from 'react-native-qrcode-svg';
 
 export default function MyCardScreen() {
-  const router = useRouter();
-  const { user } = useAuth();
-
-  const [loading, setLoading] = useState(true);
-  const [fullName, setFullName] = useState('');
-  const [jobTitle, setJobTitle] = useState('');
+  const [name, setName] = useState('');
+  const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
-  const [phone, setPhone] = useState('');
-  const [website, setWebsite] = useState('');
-  const [bio, setBio] = useState('');
-  const [email, setEmail] = useState('');
+  const router = useRouter();
 
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/login');
-  };
+  const user = auth.currentUser;
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchCard = async () => {
+      try {
+        const docRef = doc(db, 'cards', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setName(data.name || '');
+          setTitle(data.title || '');
+          setCompany(data.company || '');
+        }
+      } catch (error: any) {
+        Alert.alert('Error loading card', error.message);
+      }
+    };
+    fetchCard();
+  }, [user]);
 
   const handleSave = async () => {
     if (!user) return;
-
-    const cardData = {
-      fullName,
-      jobTitle,
-      company,
-      phone,
-      website,
-      bio,
-      email: user.email,
-      uid: user.uid,
-      updatedAt: new Date(),
-    };
-
     try {
-      await setDoc(doc(db, 'users', user.uid, 'card', 'info'), cardData);
-      Alert.alert('Success', 'Your business card has been saved.');
-    } catch (error) {
-      console.error('Error saving card:', error);
-      Alert.alert('Error', 'Could not save card data.');
+      await setDoc(doc(db, 'cards', user.uid), {
+        name,
+        title,
+        company,
+        email: user.email,
+      });
+      Alert.alert('Saved', 'Your card has been saved.');
+    } catch (error: any) {
+      Alert.alert('Save Failed', error.message);
     }
   };
 
-  const fetchCard = async () => {
-    if (!user) return;
-
+  const handleLogout = async () => {
     try {
-      const docRef = doc(db, 'users', user.uid, 'card', 'info');
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setFullName(data.fullName || '');
-        setJobTitle(data.jobTitle || '');
-        setCompany(data.company || '');
-        setPhone(data.phone || '');
-        setWebsite(data.website || '');
-        setBio(data.bio || '');
-        setEmail(data.email || '');
-      }
-    } catch (err) {
-      console.error('Failed to fetch card', err);
-    } finally {
-      setLoading(false);
+      await signOut(auth);
+      router.replace('/login');
+    } catch (error: any) {
+      Alert.alert('Logout Failed', error.message);
     }
   };
-
-  useEffect(() => {
-    fetchCard();
-  }, []);
-
-  const qrData = JSON.stringify({
-    name: fullName,
-    email: email,
-    phone: phone,
-    jobTitle,
-    company,
-    website,
-  });
-
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>Loading your card…</Text>
-      </View>
-    );
-  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>My Business Card</Text>
+      <Text style={styles.userInfo}>Logged in as: {user?.email}</Text>
+      <Button title="Log Out" onPress={handleLogout} color="red" />
 
-      <TextInput placeholder="Full Name" value={fullName} onChangeText={setFullName} style={styles.input} />
-      <TextInput placeholder="Job Title" value={jobTitle} onChangeText={setJobTitle} style={styles.input} />
-      <TextInput placeholder="Company" value={company} onChangeText={setCompany} style={styles.input} />
-      <TextInput placeholder="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={styles.input} />
-      <TextInput placeholder="Website" value={website} onChangeText={setWebsite} keyboardType="url" autoCapitalize="none" style={styles.input} />
-      <TextInput placeholder="Short Bio" value={bio} onChangeText={setBio} multiline style={[styles.input, { height: 80 }]} />
+      <TextInput style={styles.input} placeholder="Name" value={name} onChangeText={setName} />
+      <TextInput style={styles.input} placeholder="Title" value={title} onChangeText={setTitle} />
+      <TextInput style={styles.input} placeholder="Company" value={company} onChangeText={setCompany} />
 
-      <View style={styles.buttonContainer}>
-        <Button title="Save" onPress={handleSave} />
-      </View>
+      <Button title="Save Card" onPress={handleSave} />
 
       <View style={styles.qrContainer}>
-        <Text style={styles.qrLabel}>Your QR Code:</Text>
-        <QRCode value={qrData} size={180} />
+        <QRCode value={`${name}|${title}|${company}`} size={200} />
       </View>
-
-      <Button title="Logout" onPress={handleLogout} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 12 },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 12, textAlign: 'center' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 8,
-    fontSize: 16,
-    backgroundColor: 'white',
-  },
-  buttonContainer: { marginVertical: 16 },
-  qrContainer: { alignItems: 'center', marginVertical: 20 },
-  qrLabel: { fontWeight: 'bold', marginBottom: 8, fontSize: 16 },
+  container: { padding: 20 },
+  input: { borderWidth: 1, borderColor: '#ccc', marginBottom: 10, padding: 10, borderRadius: 5 },
+  qrContainer: { alignItems: 'center', marginTop: 20 },
+  userInfo: { marginBottom: 10, fontWeight: 'bold' },
 });

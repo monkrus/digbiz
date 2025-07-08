@@ -20,12 +20,12 @@ export default function TabLayout() {
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
           ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
+            position: 'absolute', // transparent bg on iOS for blur effect
           },
           default: {},
         }),
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
@@ -41,13 +41,26 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-  name="contacts"
-  options={{
-    title: 'Contacts',
-    tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
-  }}
-/>
-
+        name="contacts"
+        options={{
+          title: 'Contacts',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="my-card"
+        options={{
+          title: 'My Card',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.crop.rectangle" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="qr-scanner"
+        options={{
+          title: 'Scan QR',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="qrcode.viewfinder" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

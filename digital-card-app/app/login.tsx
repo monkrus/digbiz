@@ -1,69 +1,56 @@
-// digital-card-app/app/login.tsx
 import React, { useState } from 'react';
-import { View, TextInput, Button, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { loginWithEmailPassword } from '../utils/auth';
+import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase';
 import { useRouter } from 'expo-router';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
+  const [isLogin, setIsLogin] = useState(true);
   const router = useRouter();
 
-  const handleLogin = async () => {
-    setError('');
-    setLoading(true);
+  const handleAuth = async () => {
     try {
-      await loginWithEmailPassword(email, password);
-      router.replace('/');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+      router.replace('/(tabs)/my-card'); // or your home screen
+    } catch (error: any) {
+      Alert.alert('Authentication Error', error.message);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Login to DigiBiz</Text>
+      <Text style={styles.title}>{isLogin ? 'Login' : 'Sign Up'}</Text>
       <TextInput
-        placeholder="Email"
-        onChangeText={setEmail}
-        value={email}
-        keyboardType="email-address"
-        autoCapitalize="none"
         style={styles.input}
+        placeholder="Email"
+        value={email}
+        autoCapitalize="none"
+        onChangeText={setEmail}
       />
       <TextInput
+        style={styles.input}
         placeholder="Password"
+        value={password}
         secureTextEntry
         onChangeText={setPassword}
-        value={password}
-        style={styles.input}
       />
-      {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" style={{ marginVertical: 20 }} />
-      ) : (
-        <>
-          <Button title="Login" onPress={handleLogin} />
-          <View style={{ marginTop: 10 }}>
-            <Button
-              title="Don't have an account? Sign Up"
-              onPress={() => router.push('/signup')}
-            />
-          </View>
-        </>
-      )}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Button title={isLogin ? 'Login' : 'Sign Up'} onPress={handleAuth} />
+      <Text onPress={() => setIsLogin(!isLogin)} style={styles.switch}>
+        {isLogin ? 'No account? Sign up' : 'Have an account? Login'}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, flex: 1, justifyContent: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  input: { borderWidth: 1, marginVertical: 10, padding: 10, borderRadius: 5 },
-  error: { color: 'red', marginTop: 10, textAlign: 'center' },
+  container: { flex: 1, justifyContent: 'center', padding: 20 },
+  title: { fontSize: 24, marginBottom: 20, textAlign: 'center' },
+  input: { borderWidth: 1, borderColor: '#ccc', padding: 10, marginBottom: 10, borderRadius: 5 },
+  switch: { marginTop: 20, textAlign: 'center', color: 'blue' },
 });

@@ -1,155 +1,81 @@
-// digital-card-app/app/(tabs)/qr-scanner.tsx
-import React, { useEffect, useState } from 'react';
-import { Alert, Button, StyleSheet, Text, View } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { CameraView } from 'expo-camera';
 import { useIsFocused } from '@react-navigation/native';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
-import { useAuth } from '../../hooks/auth-context';
+import { collection, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../../firebase';
 
-export default function QRScannerScreen() {
-  const { user } = useAuth();
-  const [scanned, setScanned] = useState(false);
-  const [cameraPermission, requestPermission] = useCameraPermissions();
+export default function QRScanner() {
   const isFocused = useIsFocused();
+  const [scanned, setScanned] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const hasPermission = cameraPermission?.granted;
-
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (scanned || !user) return;
-
+  const handleScanned = async (event: any) => {
+    if (scanned) return;
     setScanned(true);
+    setLoading(true);
+
+    const scannedUID = event.data.trim();
 
     try {
-      const parsed = JSON.parse(data);
-      const { name, email, phone } = parsed;
-
-      if (!name || !email || !phone) {
-        throw new Error('Missing required contact information');
+      if (!scannedUID || scannedUID.length < 20) {
+        throw new Error('Invalid QR code. UID is too short or empty.');
       }
 
-      await addDoc(collection(db, 'users', user.uid, 'contacts'), {
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        scannedAt: new Date(),
-      });
-
-      Alert.alert(
-        'Contact Saved',
-        `Name: ${name}\nEmail: ${email}\nPhone: ${phone}`,
-        [{ text: 'OK', onPress: () => setScanned(false) }]
-      );
-    } catch (error) {
-      let errorMessage = 'This QR code does not contain valid contact info.';
-
-      if (error instanceof SyntaxError) {
-        errorMessage = 'QR code contains invalid data format.';
-      } else if (
-        typeof error === 'object' &&
-        error !== null &&
-        'message' in error &&
-        (error as { message?: string }).message === 'Missing required contact information'
-      ) {
-        errorMessage = 'QR code is missing required fields (name, email, phone).';
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error('User not authenticated.');
+      if (scannedUID === currentUser.uid) {
+        throw new Error('You cannot add your own card.');
       }
 
-      Alert.alert('Invalid QR Code', errorMessage, [
-        { text: 'OK', onPress: () => setScanned(false) },
-      ]);
+      const docRef = doc(db, 'cards', scannedUID);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const contactRef = doc(collection(db, 'cards', currentUser.uid, 'contacts'));
+        await setDoc(contactRef, {
+          ...data,
+          addedAt: serverTimestamp(),
+        });
+
+        Alert.alert('Contact Saved', `You added ${data.name} from ${data.company}`);
+      } else {
+        Alert.alert('No card found', 'That user has not created a card yet.');
+      }
+    } catch (error: any) {
+      Alert.alert('Error scanning QR', error.message);
+    } finally {
+      setLoading(false);
+      setTimeout(() => setScanned(false), 3000); // Allow scanning again after 3s
     }
   };
 
-  if (cameraPermission === null) {
-    return (
-      <View style={styles.centered}>
-        <Text>Requesting camera permission…</Text>
-      </View>
-    );
-  }
-
-  if (!hasPermission) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.permissionText}>
-          Camera access is required to scan QR codes.
-        </Text>
-        <Button title="Grant Permission" onPress={requestPermission} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
+      {loading && <ActivityIndicator size="large" />}
       {isFocused && (
         <CameraView
-          style={StyleSheet.absoluteFillObject}
-          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          style={StyleSheet.absoluteFill}
+          onBarcodeScanned={handleScanned}
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         />
       )}
-
-      <View style={styles.overlay}>
-        <View style={styles.scanArea} />
-        <Text style={styles.instructionText}>
-          Point your camera at a QR code to scan
-        </Text>
-      </View>
-
-      {scanned && (
-        <View style={styles.buttonContainer}>
-          <Button title="Scan Again" onPress={() => setScanned(false)} />
-        </View>
-      )}
+      <Text style={styles.instruction}>Scan a user QR code to add them</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'black' },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 20,
-    padding: 20,
-  },
-  permissionText: {
+  container: { flex: 1, justifyContent: 'center' },
+  instruction: {
     textAlign: 'center',
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  overlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scanArea: {
-    width: 250,
-    height: 250,
-    borderWidth: 2,
-    borderColor: 'white',
-    borderRadius: 10,
-    backgroundColor: 'transparent',
-  },
-  instructionText: {
-    color: 'white',
+    bottom: 50,
+    width: '100%',
     fontSize: 16,
-    textAlign: 'center',
-    marginTop: 20,
-    paddingHorizontal: 20,
-  },
-  buttonContainer: {
-    position: 'absolute',
-    bottom: 40,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
+    color: '#fff',
+    backgroundColor: '#000a',
+    padding: 10,
   },
 });
