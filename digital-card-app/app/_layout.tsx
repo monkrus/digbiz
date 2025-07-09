@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Slot, useRouter } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase'; // Adjust path if needed
+import { auth } from '../firebase'; // ✅ adjust if needed based on new firebase.ts location
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
 export default function RootLayout() {
@@ -10,16 +10,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setLoading(false); // ✅ set this BEFORE navigating
       if (user) {
-        router.replace('/(tabs)/my-card'); // User is signed in → main tabs
+        router.replace('/(tabs)/my-card'); // ✅ Main screen after login
       } else {
-        router.replace('/login'); // Not signed in → login screen
+        router.replace('/login'); // ✅ Redirect to login screen
       }
-      setLoading(false);
     });
 
     return unsubscribe;
-  }, [router]);
+  }, []);
 
   if (loading) {
     return (
@@ -33,5 +33,9 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

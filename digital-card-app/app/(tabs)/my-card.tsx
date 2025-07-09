@@ -11,12 +11,16 @@ export default function MyCardScreen() {
   const [name, setName] = useState('');
   const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState('');
   const router = useRouter();
 
-  const user = auth.currentUser;
-
   useEffect(() => {
+    const user = auth.currentUser;
     if (!user) return;
+
+    setEmail(user.email || '');
+
     const fetchCard = async () => {
       try {
         const docRef = doc(db, 'cards', user.uid);
@@ -27,14 +31,18 @@ export default function MyCardScreen() {
           setTitle(data.title || '');
           setCompany(data.company || '');
         }
+        setLoading(false);
       } catch (error: any) {
         Alert.alert('Error loading card', error.message);
+        setLoading(false);
       }
     };
+
     fetchCard();
-  }, [user]);
+  }, []);
 
   const handleSave = async () => {
+    const user = auth.currentUser;
     if (!user) return;
     try {
       await setDoc(doc(db, 'cards', user.uid), {
@@ -58,9 +66,17 @@ export default function MyCardScreen() {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading your card...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.userInfo}>Logged in as: {user?.email}</Text>
+      <Text style={styles.userInfo}>Logged in as: {email}</Text>
       <Button title="Log Out" onPress={handleLogout} color="red" />
 
       <TextInput style={styles.input} placeholder="Name" value={name} onChangeText={setName} />

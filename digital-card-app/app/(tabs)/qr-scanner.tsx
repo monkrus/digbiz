@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { CameraView } from 'expo-camera';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useIsFocused } from '@react-navigation/native';
 import { collection, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
@@ -9,9 +9,17 @@ export default function QRScanner() {
   const isFocused = useIsFocused();
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+
+  useEffect(() => {
+    if (!permission || !permission.granted) {
+      requestPermission();
+    }
+  }, [permission]);
 
   const handleScanned = async (event: any) => {
-    if (scanned) return;
+    if (scanned || !event?.data) return;
+
     setScanned(true);
     setLoading(true);
 
@@ -47,20 +55,30 @@ export default function QRScanner() {
       Alert.alert('Error scanning QR', error.message);
     } finally {
       setLoading(false);
-      setTimeout(() => setScanned(false), 3000); // Allow scanning again after 3s
+      setTimeout(() => setScanned(false), 3000);
     }
   };
 
   return (
     <View style={styles.container}>
       {loading && <ActivityIndicator size="large" />}
-      {isFocused && (
+
+      {isFocused && permission?.granted ? (
         <CameraView
           style={StyleSheet.absoluteFill}
           onBarcodeScanned={handleScanned}
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          barcodeScannerSettings={{
+            barcodeTypes: ['qr'],
+          }}
         />
+      ) : (
+        <Text style={styles.permissionText}>
+          {permission?.granted === false
+            ? 'Camera permission is required to scan QR codes.'
+            : 'Requesting camera permission...'}
+        </Text>
       )}
+
       <Text style={styles.instruction}>Scan a user QR code to add them</Text>
     </View>
   );
@@ -77,5 +95,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     backgroundColor: '#000a',
     padding: 10,
+  },
+  permissionText: {
+    textAlign: 'center',
+    color: 'white',
+    padding: 20,
+    fontSize: 16,
   },
 });
