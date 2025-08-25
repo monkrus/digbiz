@@ -2,18 +2,22 @@
 import React, { useEffect, useState } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
-import { observeUser } from "@/lib/auth";
+import { observeUser } from "../lib/auth";
+
+export default function RootLayout() {
+  return <AuthProvider />;
+}
 
 function AuthProvider() {
-  const segments = useSegments(); // e.g. ["auth"] or ["main"]
   const router = useRouter();
+  const segments = useSegments();
   const [ready, setReady] = useState(false);
-  const [user, setUser] = useState<null | { uid: string }>(null);
+  const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
     const unsub = observeUser((u) => {
-      setUser(u ? { uid: u.uid } : null);
-      setReady(true);
+      setIsAuthed(!!u);
+      setReady(true); // only after Firebase reports user/null
     });
     return unsub;
   }, []);
@@ -21,9 +25,9 @@ function AuthProvider() {
   useEffect(() => {
     if (!ready) return;
     const inAuth = segments[0] === "auth";
-    if (!user && !inAuth) router.replace("/auth/login");
-    if (user && inAuth) router.replace("/main");
-  }, [ready, user, segments, router]);
+    if (!isAuthed && !inAuth) router.replace("/auth/login");
+    if (isAuthed && inAuth) router.replace("/main");
+  }, [ready, isAuthed, segments, router]);
 
   if (!ready) {
     return (
@@ -32,11 +36,5 @@ function AuthProvider() {
       </View>
     );
   }
-
   return <Slot />;
-}
-
-export default function RootLayout() {
-  // No <Stack /> here — avoid multiple navigators
-  return <AuthProvider />;
 }

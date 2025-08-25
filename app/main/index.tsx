@@ -1,54 +1,32 @@
+// app/main/index.tsx
+import { View, Text, Button } from "react-native";
+import { auth } from "../../lib/firebase";
+import { signOut } from "../../lib/auth";
 import { Link } from "expo-router";
-import { View, Text, StyleSheet } from "react-native";
-import { useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
 
-export default function HomeScreen() {
-  useEffect(() => {
-    (async () => {
-      try {
-        const snap = await getDoc(doc(db, "_test", "ok"));
-        console.log("✅ Firestore reachable", snap.exists());
-      } catch (e) {
-        console.log("❌ Firestore error", e);
-      }
-    })();
-  }, []);
-
+export default function Home() {
+  const user = auth.currentUser;
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Home</Text>
-      <Link href="/main/my-card" style={styles.link}>
-        My Card
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
+      <Text style={{ fontSize: 18, marginBottom: 12 }}>
+        {user
+          ? `Logged in as: ${user.email ?? "unknown"} (UID: ${user.uid})`
+          : "Not signed in"}
+      </Text>
+
+      <Link href="/main/my-card" style={{ color: "#007AFF", fontSize: 16 }}>
+        Go to My Card
       </Link>
-      <Link href="/main/contacts" style={styles.link}>
-        Contacts
+
+      <Link href="/main/contacts" style={{ color: "#007AFF", fontSize: 16 }}>
+        View Contacts
       </Link>
-      <Link href="/main/scan" style={styles.link}>
-        Scan
+
+      <Link href="/main/scan" style={{ color: "#007AFF", fontSize: 16 }}>
+        Scan a QR
       </Link>
-      <Link href="/main/share" style={styles.link}>
-        Share
-      </Link>
+
+      <Button title="Sign out" onPress={signOut} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "600",
-  },
-  link: {
-    color: "#007AFF",
-    fontSize: 16,
-    paddingVertical: 4,
-  },
-});

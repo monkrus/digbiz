@@ -1,4 +1,3 @@
-// lib/firebase.ts
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { initializeApp, getApps } from "firebase/app";
@@ -22,7 +21,6 @@ type FirebaseExtra = {
   measurementId?: string;
 };
 
-// Read from app.config.ts -> extra.firebase
 const firebaseConfig =
   (Constants.expoConfig?.extra?.firebase as FirebaseExtra) ??
   (Constants.manifest2?.extra?.firebase as FirebaseExtra);
@@ -31,10 +29,9 @@ if (!firebaseConfig?.apiKey || !firebaseConfig?.projectId || !firebaseConfig?.ap
   console.warn("Firebase config is missing. Did you set .env and app.config.ts?");
 }
 
-// Single app instance
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-// Auth: on native, we must use initializeAuth with AsyncStorage persistence
+// Use native persistence on iOS/Android
 let auth = getAuth(app);
 if (Platform.OS !== "web") {
   try {
@@ -42,14 +39,14 @@ if (Platform.OS !== "web") {
       persistence: getReactNativePersistence(AsyncStorage),
     });
   } catch {
-    // initializeAuth throws if called twice — ignore on fast refresh
+    // initializeAuth throws on hot reload if called twice
   }
 }
 
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-/** Promise that resolves once Firebase reports the current user (or null). */
+/** Resolves once Firebase reports the current user (or null). */
 export const getCurrentUser = (): Promise<User | null> =>
   new Promise((resolve) => {
     const unsub = auth.onAuthStateChanged((u) => {

@@ -1,9 +1,10 @@
+// app/auth/signup.tsx
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, Alert } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signUpSchema, SignUpInput } from "@/lib/validators/auth";
-import { signUpEmail, mapAuthError } from "@/lib/auth";
+import { signUpSchema, type SignUpInput } from "../../lib/validators/auth";
+import { signUpEmail, mapAuthError } from "../../lib/auth";
 import { Link } from "expo-router";
 
 export default function Signup() {
@@ -13,11 +14,11 @@ export default function Signup() {
   });
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = handleSubmit(async (values) => {
+  const onSubmit = handleSubmit(async ({ email, password }) => {
     try {
       setLoading(true);
-      await signUpEmail(values.email, values.password);
-      // user will be redirected by the AuthProvider guard
+      await signUpEmail(email, password);
+      // Navigation handled by the auth guard in app/_layout.tsx
     } catch (e: any) {
       Alert.alert("Sign up failed", mapAuthError(e?.code));
     } finally {
@@ -27,64 +28,57 @@ export default function Signup() {
 
   return (
     <View style={{ flex: 1, padding: 20, gap: 12, justifyContent: "center" }}>
-      <Text style={{ fontSize: 22, fontWeight: "700", textAlign: "center" }}>Create Account</Text>
+      <Text style={{ fontSize: 22, fontWeight: "700", textAlign: "center" }}>
+        Create Account
+      </Text>
 
-      <Controller
+      <Field
         control={control}
         name="email"
-        render={({ field, fieldState }) => (
-          <>
-            <TextInput
-              placeholder="Email"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={field.value}
-              onChangeText={field.onChange}
-              style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 8 }}
-            />
-            {fieldState.error && <Text style={{ color: "crimson" }}>{fieldState.error.message}</Text>}
-          </>
-        )}
+        label="Email"
+        keyboardType="email-address"
+        autoCapitalize="none"
       />
+      <Field control={control} name="password" label="Password" secureTextEntry />
+      <Field control={control} name="confirm" label="Confirm password" secureTextEntry />
 
-      <Controller
-        control={control}
-        name="password"
-        render={({ field, fieldState }) => (
-          <>
-            <TextInput
-              placeholder="Password"
-              secureTextEntry
-              value={field.value}
-              onChangeText={field.onChange}
-              style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 8 }}
-            />
-            {fieldState.error && <Text style={{ color: "crimson" }}>{fieldState.error.message}</Text>}
-          </>
-        )}
+      <Button
+        title={loading ? "Creating..." : "Create account"}
+        onPress={onSubmit}
+        disabled={loading}
       />
-
-      <Controller
-        control={control}
-        name="confirm"
-        render={({ field, fieldState }) => (
-          <>
-            <TextInput
-              placeholder="Confirm password"
-              secureTextEntry
-              value={field.value}
-              onChangeText={field.onChange}
-              style={{ borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 8 }}
-            />
-            {fieldState.error && <Text style={{ color: "crimson" }}>{fieldState.error.message}</Text>}
-          </>
-        )}
-      />
-
-      <Button title={loading ? "Creating..." : "Create account"} onPress={onSubmit} disabled={loading} />
 
       <View style={{ height: 8 }} />
       <Link href="/auth/login">Back to sign in</Link>
     </View>
+  );
+}
+
+function Field(props: any) {
+  const { control, name, label, ...rest } = props;
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontWeight: "600" }}>{label}</Text>
+          <TextInput
+            value={field.value}
+            onChangeText={field.onChange}
+            style={{
+              borderWidth: 1,
+              borderColor: fieldState.error ? "crimson" : "#ccc",
+              padding: 10,
+              borderRadius: 8,
+            }}
+            {...rest}
+          />
+          {fieldState.error && (
+            <Text style={{ color: "crimson" }}>{fieldState.error.message}</Text>
+          )}
+        </View>
+      )}
+    />
   );
 }
