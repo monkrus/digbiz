@@ -1,12 +1,13 @@
-import 'dotenv/config';
-import type { ExpoConfig } from 'expo/config';
+// app.config.ts
+import "dotenv/config";
+import type { ExpoConfig } from "expo/config";
 
 export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
   ...config,
-  name: config.name ?? 'digbiz-app',
-  slug: config.slug ?? 'digbiz-app',
-  scheme: 'digbizapp',
-  plugins: [...(config.plugins ?? []), 'expo-router'],
+  name: config.name ?? "digbiz-app",
+  slug: config.slug ?? "digbiz-app",
+  scheme: "digbizapp",
+  plugins: [...(config.plugins ?? []), "expo-router"],
   extra: {
     ...config.extra,
     firebase: {
@@ -18,6 +19,9 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
       appId: process.env.FIREBASE_APP_ID,
       measurementId: process.env.FIREBASE_MEASUREMENT_ID,
     },
-    authRedirectScheme: 'digbizapp',
+    authRedirectScheme: "digbizapp",
+    google: {
+      clientId: process.env.GOOGLE_WEB_CLIENT_ID as string, // <-- set this in .env
+    },
   },
 });
